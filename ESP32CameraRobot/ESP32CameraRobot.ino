@@ -4,6 +4,7 @@ const char *password = "";
 
 // Please select camera model in camera_pins.h
 #include "camera_pins.h"
+#include "app_httpd.h"
 
 #include <FFat.h>
 #include <LittleFS.h>
@@ -122,14 +123,22 @@ void setup()
   s->set_vflip(s, 1);
 #endif
 
+  // Allow allocation of all timers
+  ESP32PWM::allocateTimer(1);
+  servo1.setPeriodHertz(50); // Standard 50hz servo
+  servo2.setPeriodHertz(50); // Standard 50hz servo
+
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);
 
   // by default DNSServer is started serving any "*" domain name. It will reply
   // AccessPoint's IP to all DNS request (this is required for Captive Portal detection)
-  if (dnsServer.start()) {
+  if (dnsServer.start())
+  {
     Serial.println("Started DNS server in captive portal-mode");
-  } else {
+  }
+  else
+  {
     Serial.println("Err: Can't start DNS server!");
   }
 

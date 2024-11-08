@@ -19,6 +19,16 @@
 #include "esp32-hal-log.h"
 #endif
 
+#define TAG "HTTPD"
+
+#define MOTORCMD "MOTOR:"
+#include <ESP32Servo.h>
+Servo servo1;
+Servo servo2;
+// Published values for SG90 servos; adjust if needed
+int minUs = 1000;
+int maxUs = 2000;
+
 typedef struct
 {
   httpd_req_t *req;
@@ -33,51 +43,40 @@ static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 
-typedef struct
+static uint16_t hexValue(uint8_t h)
 {
-  size_t size;  // number of values used for filtering
-  size_t index; // current value index
-  size_t count; // value count
-  int sum;
-  int *values; // array to be filled with values
-} ra_filter_t;
-
-static ra_filter_t ra_filter;
-
-static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size)
-{
-  memset(filter, 0, sizeof(ra_filter_t));
-
-  filter->values = (int *)malloc(sample_size * sizeof(int));
-  if (!filter->values)
+  if (h >= '0' && (h <= '9'))
   {
-    return NULL;
+    return h - '0';
   }
-  memset(filter->values, 0, sample_size * sizeof(int));
-
-  filter->size = sample_size;
-  return filter;
+  else if ((h >= 'A') && (h <= 'F'))
+  {
+    return 10 + h - 'A';
+  }
+  else if ((h >= 'a') && (h <= 'f'))
+  {
+    return 10 + h - 'a';
+  }
+  return 0;
 }
 
-#if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO
-static int ra_filter_run(ra_filter_t *filter, int value)
+static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
 {
-  if (!filter->values)
-  {
-    return value;
-  }
-  filter->sum -= filter->values[filter->index];
-  filter->values[filter->index] = value;
-  filter->sum += filter->values[filter->index];
-  filter->index++;
-  filter->index = filter->index % filter->size;
-  if (filter->count < filter->size)
-  {
-    filter->count++;
-  }
-  return filter->sum / filter->count;
-}
+  int lv = la + 255 - lb;
+  int rv = ra + 255 - rb;
+#ifdef SERVO360_REVERSE
+  int lAngle = map(lv, 0, 510, 179, 0);
+  int rAngle = map(rv, 0, 510, 0, 179);
+#else
+  int lAngle = map(lv, 0, 510, 0, 179);
+  int rAngle = map(rv, 0, 510, 179, 0);
 #endif
+  servo1.attach(SERVO360_L_Pin, minUs, maxUs);
+  servo2.attach(SERVO360_R_Pin, minUs, maxUs);
+  servo1.write(lAngle);
+  servo2.write(rAngle);
+  Serial.printf("la: %d, lb: %d, lAngle: %d, ra: %d, rb: %d, rAngle: %d\n", la, lb, lAngle, ra, rb, rAngle);
+}
 
 static esp_err_t bmp_handler(httpd_req_t *req)
 {
@@ -274,9 +273,8 @@ static esp_err_t stream_handler(httpd_req_t *req)
     int64_t fr_end = esp_timer_get_time();
     int64_t frame_time = fr_end - last_frame;
     frame_time /= 1000;
-    uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
-    log_i("MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)",
-          (uint32_t)(_jpg_buf_len), (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, avg_frame_time, 1000.0 / avg_frame_time);
+    log_i("MJPG: %uB %ums (%.1ffps)",
+          (uint32_t)(_jpg_buf_len), (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time);
     last_frame = fr_end;
 #endif
   }
@@ -723,6 +721,87 @@ static esp_err_t httpd_resp_send_file(httpd_req_t *req, const char *filename)
   return httpd_resp_send_chunk(req, buf, 0);
 }
 
+/*
+ * This handler echos back the received ws data
+ * and triggers an async send if certain message received
+ */
+static esp_err_t ws_handler(httpd_req_t *req)
+{
+  if (req->method == HTTP_GET)
+  {
+    ESP_LOGI(TAG, "Handshake done, the new connection was opened");
+    return ESP_OK;
+  }
+  httpd_ws_frame_t ws_pkt;
+  uint8_t *buf = NULL;
+  memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+  ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+  /* Set max_len = 0 to get the frame len */
+  esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+  if (ret != ESP_OK)
+  {
+    ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d", ret);
+    return ret;
+  }
+  ESP_LOGI(TAG, "frame len is %d", ws_pkt.len);
+  if (ws_pkt.len)
+  {
+    /* ws_pkt.len + 1 is for NULL termination as we are expecting a string */
+    buf = (uint8_t *)calloc(1, ws_pkt.len + 1);
+    if (buf == NULL)
+    {
+      ESP_LOGE(TAG, "Failed to calloc memory for buf");
+      return ESP_ERR_NO_MEM;
+    }
+    ws_pkt.payload = buf;
+    /* Set max_len = ws_pkt.len to get the frame payload */
+    ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+    if (ret != ESP_OK)
+    {
+      ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+      free(buf);
+      return ret;
+    }
+    ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+  }
+  ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
+
+  ret = httpd_ws_send_frame(req, &ws_pkt);
+  if (ret != ESP_OK)
+  {
+    ESP_LOGE(TAG, "httpd_ws_send_frame failed with %d", ret);
+  }
+
+  uint8_t *p = buf + sizeof(MOTORCMD) - 1;
+  uint8_t la = hexValue(*(p++));
+  if (*p != ':')
+  {
+    la = (la * 16) + hexValue(*(p++));
+  }
+  p++; // skip seperator
+  uint8_t lb = hexValue(*(p++));
+  if (*p != ':')
+  {
+    lb = (lb * 16) + hexValue(*(p++));
+  }
+  p++; // skip seperator
+  uint8_t ra = hexValue(*(p++));
+  if (*p != ':')
+  {
+    ra = (ra * 16) + hexValue(*(p++));
+  }
+  p++; // skip seperator
+  uint8_t rb = hexValue(*(p++));
+  if (*p != ':')
+  {
+    rb = (rb * 16) + hexValue(*(p++));
+  }
+  setMotor(la, lb, ra, rb);
+
+  free(buf);
+  return ret;
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "text/html");
@@ -761,10 +840,22 @@ static esp_err_t camerarobot_handler(httpd_req_t *req)
   return httpd_resp_send_file(req, "/root/camerarobot.htm");
 }
 
+static esp_err_t echo_handler(httpd_req_t *req)
+{
+  httpd_resp_set_type(req, "text/html");
+  return httpd_resp_send_file(req, "/root/echo.htm");
+}
+
 static esp_err_t favicon_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "image/vnd.microsoft.icon");
   return httpd_resp_send_file(req, "/root/favicon.ico");
+}
+
+static esp_err_t touchremote_handler(httpd_req_t *req)
+{
+  httpd_resp_set_type(req, "text/html");
+  return httpd_resp_send_file(req, "/root/touchremote.htm");
 }
 
 static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
@@ -778,7 +869,20 @@ static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
 void startCameraServer()
 {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 16;
+  config.max_uri_handlers = 32;
+
+  httpd_uri_t ws_uri = {
+      .uri = "/ws",
+      .method = HTTP_GET,
+      .handler = ws_handler,
+      .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      ,
+      .is_websocket = true,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = "arduino"
+#endif
+  };
 
   httpd_uri_t index_uri = {
       .uri = "/",
@@ -819,10 +923,36 @@ void startCameraServer()
 #endif
   };
 
+  httpd_uri_t echo_uri = {
+      .uri = "/echo.htm",
+      .method = HTTP_GET,
+      .handler = echo_handler,
+      .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      ,
+      .is_websocket = true,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = NULL
+#endif
+  };
+
   httpd_uri_t favicon_uri = {
       .uri = "/favicon.ico",
       .method = HTTP_GET,
       .handler = favicon_handler,
+      .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      ,
+      .is_websocket = true,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = NULL
+#endif
+  };
+
+  httpd_uri_t touchremote_uri = {
+      .uri = "/touchremote.htm",
+      .method = HTTP_GET,
+      .handler = touchremote_handler,
       .user_ctx = NULL
 #ifdef CONFIG_HTTPD_WS_SUPPORT
       ,
@@ -962,16 +1092,18 @@ void startCameraServer()
 #endif
   };
 
-  ra_filter_init(&ra_filter, 20);
-
   log_i("Starting web server on port: '%d'", config.server_port);
   if (httpd_start(&camera_httpd, &config) == ESP_OK)
   {
+    httpd_register_uri_handler(camera_httpd, &ws_uri);
+
     httpd_register_uri_handler(camera_httpd, &index_uri);
     httpd_register_uri_handler(camera_httpd, &arrows_uri);
     httpd_register_uri_handler(camera_httpd, &camerarobot_uri);
+    httpd_register_uri_handler(camera_httpd, &echo_uri);
     httpd_register_uri_handler(camera_httpd, &favicon_uri);
-    
+    httpd_register_uri_handler(camera_httpd, &touchremote_uri);
+
     httpd_register_uri_handler(camera_httpd, &cmd_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);
     httpd_register_uri_handler(camera_httpd, &capture_uri);

@@ -1,0 +1,186 @@
+<!-- source: 
+  https://javascript.info/websocket
+  https://stackoverflow.com/questions/58337243/canvas-touch-event-js
+-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Touch Remote</title>
+  <style>
+    body {
+      padding: 0 24px 0 24px;
+      background-color: #ccc;
+    }
+
+    #touchcanvas {
+      margin: 0 auto 0 auto;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Touch Remote</h1>
+  <canvas id='touchcanvas' width='320' height='320'></canvas>
+
+  <div>
+    <p>Output: <span id="output"></span></p>
+  </div>
+  <div id="messages"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function (event) {
+      var hostName = window.location.hostname;
+      let ws = undefined;
+      let isSending = false;
+      let hasPendingMsg = false;
+      let mouseDowned = false;
+      let la = 0, lb = 0, ra = 0, rb = 0;
+
+      let cv = document.getElementById('touchcanvas');
+      let ctx = cv.getContext('2d');
+      let ctop = cv.offsetTop;
+      let cleft = cv.offsetLeft;
+
+      var img = new Image();
+      img.onload = function () {
+        clearCanvas();
+      }
+      img.src = `http://${hostName}/arrows.svg`;
+
+      function clearCanvas() {
+        ctx.fillStyle = '#fff';
+        ctx.rect(0, 0, 255, 255);
+        ctx.fill();
+        ctx.drawImage(img, 0, 0);
+      }
+
+      function showMessage(message) {
+        let messageElem = document.createElement('div');
+        messageElem.textContent = message;
+        document.getElementById('messages').prepend(messageElem);
+      }
+
+      function sendMessage(outgoingMessage) {
+        if ((!ws) || (ws.readyState === ws.CLOSED)) { ws = nws(); }
+        if (!isSending) {
+          output.innerHTML = outgoingMessage;
+          isSending = true;
+          ws.send(outgoingMessage);
+        } else {
+          hasPendingMsg = true;
+          output.innerHTML = "pending";
+        }
+      }
+      function sendMotor() {
+        sendMessage('MOTOR:' + la.substr(-2) + ':' + lb.substr(-2) + ':' + ra.substr(-2) + ':' + rb.substr(-2));
+      }
+
+      function updateMotor(x, y) {
+        la = 0, lb = 0, ra = 0, rb = 0;
+        if (y < 112) { // forward
+          if (x > 144) {
+            lb = (255 - y);
+            rb = lb - (x - 128);
+          } else if (x < 112) {
+            rb = (255 - y);
+            lb = rb - (128 - x);
+          } else {
+            lb = (255 - y);
+            rb = lb;
+          }
+        } else if (y > 144) { // backward
+          if (x > 144) {
+            la = y;
+            ra = la - (x - 128);
+          } else if (x < 112) {
+            ra = y;
+            la = ra - (128 - x);
+          } else {
+            la = y;
+            ra = la;
+          }
+        } else {
+          if (x > 144) {
+            lb = x;
+            ra = lb;
+          } else if (x < 112) {
+            rb = (255 - x);
+            la = rb;
+          }
+        }
+        la = '0' + la.toString(16);
+        lb = '0' + lb.toString(16);
+        ra = '0' + ra.toString(16);
+        rb = '0' + rb.toString(16);
+        sendMotor();
+
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(255,48,52,0.5)';
+        ctx.arc(x, y, 10, 0, Math.PI * 2, true);
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      function move(e) {
+        updateMotor(e.clientX - cleft, e.clientY - ctop);
+      }
+
+      function touch(e) {
+        e.preventDefault();
+        let x, y, u = e.touches[0];
+        if (u) {
+          updateMotor(u.clientX - cleft, u.clientY - ctop);
+        } else {
+          updateMotor(128, 128);
+        }
+      }
+
+      function nws() {
+        let ws = new WebSocket(`ws://${hostName}/ws`, ['arduino']);
+        ws.onmessage = function (e) {
+          isSending = false;
+          showMessage(event.data);
+          if (hasPendingMsg) {
+            hasPendingMsg = false;
+            sendMotor();
+          }
+        };
+        return ws;
+      }
+
+      document.ontouchmove = function (e) {
+        e.preventDefault();
+      };
+
+      cv.ontouchstart = touch;
+      cv.ontouchmove = touch;
+      cv.ontouchend = function (e) {
+        clearCanvas();
+        touch(e);
+      };
+      cv.onmousedown = function (e) {
+        mouseDowned = true;
+        move(e);
+      };
+      cv.onmousemove = function (e) {
+        if (mouseDowned) {
+          move(e);
+        }
+      };
+      cv.onmouseup = function (e) {
+        mouseDowned = false;
+        updateMotor(128, 128);
+        clearCanvas();
+      };
+
+      ws = nws();
+
+      clearCanvas();
+    });
+  </script>
+</body>
+
+</html>
