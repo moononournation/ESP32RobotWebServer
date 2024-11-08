@@ -6,6 +6,13 @@ const char *password = "";
 #include "camera_pins.h"
 #include "app_httpd.h"
 
+#include <Wire.h>
+
+#ifdef I2C_SSD1306_ADDRESS
+#include "SSD1306.h"
+SSD1306Wire display(I2C_SSD1306_ADDRESS, I2C_SDA_NUM, I2C_SCL_NUM, GEOMETRY_128_32);
+#endif
+
 #include <FFat.h>
 #include <LittleFS.h>
 
@@ -32,6 +39,19 @@ void setup()
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+
+  Serial.printf("Wire.begin(%d, %d);\n", I2C_SDA_NUM, I2C_SCL_NUM);
+  Wire.begin(I2C_SDA_NUM, I2C_SCL_NUM);
+#ifdef I2C_SSD1306_ADDRESS
+  Serial.println("display.init();");
+  display.init();
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_CENTER);
+  display.drawString(128 / 2, 0, ssid);
+  display.drawString(128 / 2, 16, "WiFi >> PLAY!!");
+  display.display();
+#endif
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
