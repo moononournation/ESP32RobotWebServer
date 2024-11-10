@@ -94,8 +94,10 @@ void setup()
     else
     {
       // Limit the frame size when PSRAM is not available
-      config.frame_size = FRAMESIZE_SVGA;
+      config.frame_size = FRAMESIZE_QVGA;
       config.fb_location = CAMERA_FB_IN_DRAM;
+      config.jpeg_quality = 12;
+      config.fb_count = 2;
     }
   }
   else
@@ -124,10 +126,22 @@ void setup()
   // initial sensors are flipped vertically and colors are a bit saturated
   if (s->id.PID == OV3660_PID)
   {
-    s->set_vflip(s, 1);       // flip it back
-    s->set_brightness(s, 1);  // up the brightness just a bit
-    s->set_saturation(s, -2); // lower the saturation
+    s->set_vflip(s, 1); // flip it back
+    // s->set_brightness(s, 1); // up the brightness just a bit
+    // s->set_saturation(s, -2); // lower the saturation
+    s->set_saturation(s, 3);
+    s->set_sharpness(s, 3);
   }
+  else
+  {
+    // s->set_brightness(s, 2);
+    // s->set_contrast(s, 2);
+    s->set_saturation(s, 2);
+    s->set_aec2(s, true);
+    s->set_gainceiling(s, GAINCEILING_128X);
+    s->set_lenc(s, true);
+  }
+
   // drop down frame size for higher initial frame rate
   if (config.pixel_format == PIXFORMAT_JPEG)
   {
