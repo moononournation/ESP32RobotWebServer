@@ -11,8 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#ifdef CAMERA
+#include <esp_camera.h>
+#endif
+
 #include "esp_http_server.h"
-#include "esp_camera.h"
 #include "sdkconfig.h"
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
@@ -22,12 +25,15 @@
 #define TAG "HTTPD"
 
 #define MOTORCMD "MOTOR:"
+#if defined(SERVO360MOTOR)
 #include <ESP32Servo.h>
 Servo servo1;
 Servo servo2;
 // Published values for SG90 servos; adjust if needed
 int minUs = 1000;
 int maxUs = 2000;
+#elif defined(MOTOR)
+#endif
 
 typedef struct
 {
@@ -64,6 +70,7 @@ static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
 {
   int lv = la + 255 - lb;
   int rv = ra + 255 - rb;
+#if defined(SERVO360MOTOR)
 #ifdef SERVO360_REVERSE
   int lAngle = map(lv, 0, 510, 179, 0);
   int rAngle = map(rv, 0, 510, 0, 179);
@@ -71,13 +78,32 @@ static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
   int lAngle = map(lv, 0, 510, 0, 179);
   int rAngle = map(rv, 0, 510, 179, 0);
 #endif
-  servo1.attach(SERVO360_L_Pin, minUs, maxUs);
-  servo2.attach(SERVO360_R_Pin, minUs, maxUs);
+  servo1.attach(SERVO360_L_PIN, minUs, maxUs);
+  servo2.attach(SERVO360_R_PIN, minUs, maxUs);
   servo1.write(lAngle);
   servo2.write(rAngle);
   Serial.printf("la: %d, lb: %d, lAngle: %d, ra: %d, rb: %d, rAngle: %d\n", la, lb, lAngle, ra, rb, rAngle);
+#elif defined(MOTOR)
+#if (ESP_ARDUINO_VERSION_MAJOR < 3)
+  ledcWrite(1 /* LEDChannel */, la); /* 0-255 */
+  ledcWrite(2 /* LEDChannel */, lb); /* 0-255 */
+  ledcWrite(3 /* LEDChannel */, ra); /* 0-255 */
+  ledcWrite(4 /* LEDChannel */, rb); /* 0-255 */
+#else
+  ledcWrite(MOTOR_L_A_PIN, la); /* 0-255 */
+  ledcWrite(MOTOR_L_B_PIN, lb); /* 0-255 */
+  ledcWrite(MOTOR_R_A_PIN, ra); /* 0-255 */
+  ledcWrite(MOTOR_R_B_PIN, rb); /* 0-255 */
+#endif
+#else
+  analogWrite(MOTOR_L_A_PIN, la);
+  analogWrite(MOTOR_L_B_PIN, lb);
+  analogWrite(MOTOR_R_A_PIN, ra);
+  analogWrite(MOTOR_R_B_PIN, rb);
+#endif
 }
 
+#ifdef CAMERA
 static esp_err_t bmp_handler(httpd_req_t *req)
 {
   camera_fb_t *fb = NULL;
@@ -705,6 +731,7 @@ static esp_err_t win_handler(httpd_req_t *req)
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, NULL, 0);
 }
+#endif // CAMERA
 
 static char buf[1024];
 static esp_err_t httpd_resp_send_file(httpd_req_t *req, const char *filename)
@@ -805,6 +832,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
 static esp_err_t index_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "text/html");
+#ifdef CAMERA
   sensor_t *s = esp_camera_sensor_get();
   if (s != NULL)
   {
@@ -826,6 +854,9 @@ static esp_err_t index_handler(httpd_req_t *req)
     log_e("Camera sensor not found");
     return httpd_resp_send_500(req);
   }
+#else
+  return httpd_resp_send_file(req, "/root/touchremote.htm");
+#endif
 }
 
 static esp_err_t arrows_handler(httpd_req_t *req)
@@ -860,10 +891,14 @@ static esp_err_t touchremote_handler(httpd_req_t *req)
 
 static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
 {
+#ifdef CAMERA
   httpd_resp_set_hdr(req, "Location", "/camerarobot.htm");
+#else
+  httpd_resp_set_hdr(req, "Location", "/touchremote.htm");
+#endif
   httpd_resp_set_status(req, "302");
   httpd_resp_set_type(req, "text/plain");
-  return httpd_resp_send(req, "redirect to camerarobot.htm", 27);
+  return httpd_resp_send(req, "Redirect HTML", 13);
 }
 
 void startCameraServer()
@@ -962,19 +997,7 @@ void startCameraServer()
 #endif
   };
 
-  httpd_uri_t status_uri = {
-      .uri = "/status",
-      .method = HTTP_GET,
-      .handler = status_handler,
-      .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-      ,
-      .is_websocket = true,
-      .handle_ws_control_frames = false,
-      .supported_subprotocol = NULL
-#endif
-  };
-
+#ifdef CAMERA
   httpd_uri_t cmd_uri = {
       .uri = "/control",
       .method = HTTP_GET,
@@ -988,10 +1011,10 @@ void startCameraServer()
 #endif
   };
 
-  httpd_uri_t capture_uri = {
-      .uri = "/capture",
+  httpd_uri_t status_uri = {
+      .uri = "/status",
       .method = HTTP_GET,
-      .handler = capture_handler,
+      .handler = status_handler,
       .user_ctx = NULL
 #ifdef CONFIG_HTTPD_WS_SUPPORT
       ,
@@ -1001,10 +1024,10 @@ void startCameraServer()
 #endif
   };
 
-  httpd_uri_t stream_uri = {
-      .uri = "/stream",
+  httpd_uri_t capture_uri = {
+      .uri = "/capture",
       .method = HTTP_GET,
-      .handler = stream_handler,
+      .handler = capture_handler,
       .user_ctx = NULL
 #ifdef CONFIG_HTTPD_WS_SUPPORT
       ,
@@ -1092,6 +1115,20 @@ void startCameraServer()
 #endif
   };
 
+  httpd_uri_t stream_uri = {
+      .uri = "/stream",
+      .method = HTTP_GET,
+      .handler = stream_handler,
+      .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      ,
+      .is_websocket = true,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = NULL
+#endif
+  };
+#endif // CAMERA
+
   log_i("Starting web server on port: '%d'", config.server_port);
   if (httpd_start(&camera_httpd, &config) == ESP_OK)
   {
@@ -1104,6 +1141,7 @@ void startCameraServer()
     httpd_register_uri_handler(camera_httpd, &favicon_uri);
     httpd_register_uri_handler(camera_httpd, &touchremote_uri);
 
+#ifdef CAMERA
     httpd_register_uri_handler(camera_httpd, &cmd_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);
     httpd_register_uri_handler(camera_httpd, &capture_uri);
@@ -1114,10 +1152,12 @@ void startCameraServer()
     httpd_register_uri_handler(camera_httpd, &greg_uri);
     httpd_register_uri_handler(camera_httpd, &pll_uri);
     httpd_register_uri_handler(camera_httpd, &win_uri);
+#endif // CAMERA
 
     httpd_register_err_handler(camera_httpd, HTTPD_404_NOT_FOUND, &not_found_handler);
   }
 
+#ifdef CAMERA
   config.server_port += 1;
   config.ctrl_port += 1;
   log_i("Starting stream server on port: '%d'", config.server_port);
@@ -1125,4 +1165,5 @@ void startCameraServer()
   {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
   }
+#endif // CAMERA
 }

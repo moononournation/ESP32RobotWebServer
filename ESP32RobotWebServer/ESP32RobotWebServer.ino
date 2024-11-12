@@ -1,12 +1,19 @@
 // Set these to your desired credentials.
-const char *ssid = "Strider Walker V8";
+// const char *ssid = "Strider Walker V8";
+const char *ssid = "Zigbot";
 const char *password = "";
 
-// Please select camera model in camera_pins.h
-#include "camera_pins.h"
+// Uncomment 1 and only 1 hardware config header file
+// #include "TTGO_T-JOURNAL_ROBOT.h"
+#include "SEEEDSTUDIO_ZIGBOT.h"
+
 #include "app_httpd.h"
 
 #include <Wire.h>
+
+#ifdef CAMERA
+#include <esp_camera.h>
+#endif
 
 #ifdef I2C_SSD1306_ADDRESS
 #include "SSD1306.h"
@@ -16,7 +23,6 @@ SSD1306Wire display(I2C_SSD1306_ADDRESS, I2C_SDA_NUM, I2C_SCL_NUM, GEOMETRY_128_
 #include <FFat.h>
 #include <LittleFS.h>
 
-#include <esp_camera.h>
 #include <WiFi.h>
 #include <WiFiAP.h>
 #include <DNSServer.h>
@@ -40,8 +46,10 @@ void setup()
   Serial.setDebugOutput(true);
   Serial.println();
 
+#ifdef I2C_SDA_NUM
   Serial.printf("Wire.begin(%d, %d);\n", I2C_SDA_NUM, I2C_SCL_NUM);
   Wire.begin(I2C_SDA_NUM, I2C_SCL_NUM);
+#endif
 #ifdef I2C_SSD1306_ADDRESS
   Serial.println("display.init();");
   display.init();
@@ -53,6 +61,7 @@ void setup()
   display.display();
 #endif
 
+#ifdef CAMERA
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -156,11 +165,38 @@ void setup()
 #if defined(CAMERA_MODEL_ESP32S3_EYE)
   s->set_vflip(s, 1);
 #endif
+#endif // CAMERA
 
+#if defined(SERVO360MOTOR)
   // Allow allocation of all timers
   ESP32PWM::allocateTimer(1);
   servo1.setPeriodHertz(50); // Standard 50hz servo
   servo2.setPeriodHertz(50); // Standard 50hz servo
+#elif defined(MOTOR)
+#if (ESP_ARDUINO_VERSION_MAJOR < 3)
+  ledcSetup(1 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
+  ledcAttachPin(MOTOR_L_A_PIN, 1 /* LEDChannel */);
+  ledcWrite(1 /* LEDChannel */, 0); /* 0-255 */
+  ledcSetup(2 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
+  ledcAttachPin(MOTOR_L_B_PIN, 2 /* LEDChannel */);
+  ledcWrite(2 /* LEDChannel */, 0); /* 0-255 */
+  ledcSetup(3 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
+  ledcAttachPin(MOTOR_R_A_PIN, 3 /* LEDChannel */);
+  ledcWrite(3 /* LEDChannel */, 0); /* 0-255 */
+  ledcSetup(4 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
+  ledcAttachPin(MOTOR_R_B_PIN, 4 /* LEDChannel */);
+  ledcWrite(4 /* LEDChannel */, 0); /* 0-255 */
+#else
+  ledcAttach(MOTOR_L_A_PIN, 5000, 8);
+  ledcWrite(MOTOR_L_A_PIN, 0); /* 0-255 */
+  ledcAttach(MOTOR_L_B_PIN, 5000, 8);
+  ledcWrite(MOTOR_L_B_PIN, 0); /* 0-255 */
+  ledcAttach(MOTOR_R_A_PIN, 5000, 8);
+  ledcWrite(MOTOR_R_A_PIN, 0); /* 0-255 */
+  ledcAttach(MOTOR_R_B_PIN, 5000, 8);
+  ledcWrite(MOTOR_R_B_PIN, 0); /* 0-255 */
+#endif
+#endif
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, password);
@@ -191,4 +227,10 @@ void loop()
 {
   // Do nothing. Everything is done in another task by the web server
   delay(10000);
+
+  // force deep sleep after 5 minutes
+  if (millis() > 5 * 60 * 1000)
+  {
+    esp_deep_sleep_start();
+  }
 }
