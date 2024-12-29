@@ -1,23 +1,27 @@
-// Set these to your desired credentials.
+// ===========================
+// Set WiFi softAP credentials
+// ===========================
 // const char *ssid = "Strider Walker V8";
-const char *ssid = "Zigbot";
+const char *ssid = "Strider Walker V9";
+// const char *ssid = "Zigbot";
 const char *password = "";
 
-// Uncomment 1 and only 1 hardware config header file
-// #include "TTGO_T-JOURNAL_ROBOT.h"
-#include "SEEEDSTUDIO_ZIGBOT.h"
+// Dev Device Pins: <https://github.com/moononournation/Dev_Device_Pins.git>
+// #include <PINS_ESP32-S3-CAM.h>
+#include <PINS_T-JOURNAL_ROBOT.h>
+// #include "PINS_XIAO_ESP32C6_ZIGBOT.h"
 
 #include "app_httpd.h"
 
 #include <Wire.h>
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
 #include <esp_camera.h>
 #endif
 
 #ifdef I2C_SSD1306_ADDRESS
 #include "SSD1306.h"
-SSD1306Wire display(I2C_SSD1306_ADDRESS, I2C_SDA_NUM, I2C_SCL_NUM, GEOMETRY_128_32);
+SSD1306Wire display(I2C_SSD1306_ADDRESS, I2C_SDA, I2C_SCL, GEOMETRY_128_32);
 #endif
 
 #include <FFat.h>
@@ -46,12 +50,12 @@ void setup()
   Serial.setDebugOutput(true);
   Serial.println();
 
-#ifdef I2C_SDA_NUM
-  Serial.printf("Wire.begin(%d, %d);\n", I2C_SDA_NUM, I2C_SCL_NUM);
-  Wire.begin(I2C_SDA_NUM, I2C_SCL_NUM);
+#ifdef I2C_SUPPORTED
+  Serial.printf("Wire.begin(%d, %d);\n", I2C_SDA, I2C_SCL);
+  Wire.begin(I2C_SDA, I2C_SCL);
 #endif
 #ifdef I2C_SSD1306_ADDRESS
-  Serial.println("display.init();");
+  Serial.println("SSD1306 display.init();");
   display.init();
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_16);
@@ -61,26 +65,26 @@ void setup()
   display.display();
 #endif
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sccb_sda = SIOD_GPIO_NUM;
-  config.pin_sccb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
+  config.pin_d0 = CAMERA_Y2;
+  config.pin_d1 = CAMERA_Y3;
+  config.pin_d2 = CAMERA_Y4;
+  config.pin_d3 = CAMERA_Y5;
+  config.pin_d4 = CAMERA_Y6;
+  config.pin_d5 = CAMERA_Y7;
+  config.pin_d6 = CAMERA_Y8;
+  config.pin_d7 = CAMERA_Y9;
+  config.pin_xclk = CAMERA_XCLK;
+  config.pin_pclk = CAMERA_PCLK;
+  config.pin_vsync = CAMERA_VSYNC;
+  config.pin_href = CAMERA_HREF;
+  config.pin_sccb_sda = CAMERA_SIOD;
+  config.pin_sccb_scl = CAMERA_SIOC;
+  config.pin_pwdn = CAMERA_PWDN;
+  config.pin_reset = CAMERA_RST;
   config.xclk_freq_hz = 20000000;
   config.frame_size = FRAMESIZE_UXGA;
   config.pixel_format = PIXFORMAT_JPEG; // for streaming
@@ -124,6 +128,7 @@ void setup()
 #endif
 
   // camera init
+  Serial.println("esp_camera_init();");
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK)
   {
@@ -135,6 +140,7 @@ void setup()
   // initial sensors are flipped vertically and colors are a bit saturated
   if (s->id.PID == OV3660_PID)
   {
+    Serial.println("Set OV3660");
     s->set_vflip(s, 1); // flip it back
     // s->set_brightness(s, 1); // up the brightness just a bit
     // s->set_saturation(s, -2); // lower the saturation
@@ -143,6 +149,7 @@ void setup()
   }
   else
   {
+    Serial.println("Set non-OV3660");
     // s->set_brightness(s, 2);
     // s->set_contrast(s, 2);
     s->set_saturation(s, 2);
@@ -158,14 +165,16 @@ void setup()
   }
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
+  Serial.println("Set CAMERA_MODEL_M5STACK_*");
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
 #endif
 
 #if defined(CAMERA_MODEL_ESP32S3_EYE)
+  Serial.println("Set CAMERA_MODEL_ESP32S3_EYE");
   s->set_vflip(s, 1);
 #endif
-#endif // CAMERA
+#endif // CAMERA_SUPPORTED
 
 #if defined(SERVO360MOTOR)
   // Allow allocation of all timers

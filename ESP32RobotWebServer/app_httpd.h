@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
 #include <esp_camera.h>
 #endif
 
@@ -95,15 +95,10 @@ static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
   ledcWrite(MOTOR_R_A_PIN, ra); /* 0-255 */
   ledcWrite(MOTOR_R_B_PIN, rb); /* 0-255 */
 #endif
-#else
-  analogWrite(MOTOR_L_A_PIN, la);
-  analogWrite(MOTOR_L_B_PIN, lb);
-  analogWrite(MOTOR_R_A_PIN, ra);
-  analogWrite(MOTOR_R_B_PIN, rb);
 #endif
 }
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
 static esp_err_t bmp_handler(httpd_req_t *req)
 {
   camera_fb_t *fb = NULL;
@@ -731,7 +726,7 @@ static esp_err_t win_handler(httpd_req_t *req)
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, NULL, 0);
 }
-#endif // CAMERA
+#endif // CAMERA_SUPPORTED
 
 static char buf[1024];
 static esp_err_t httpd_resp_send_file(httpd_req_t *req, const char *filename)
@@ -832,7 +827,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
 static esp_err_t index_handler(httpd_req_t *req)
 {
   httpd_resp_set_type(req, "text/html");
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
   sensor_t *s = esp_camera_sensor_get();
   if (s != NULL)
   {
@@ -891,7 +886,7 @@ static esp_err_t touchremote_handler(httpd_req_t *req)
 
 static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
 {
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
   httpd_resp_set_hdr(req, "Location", "/camerarobot.htm");
 #else
   httpd_resp_set_hdr(req, "Location", "/touchremote.htm");
@@ -997,7 +992,7 @@ void startCameraServer()
 #endif
   };
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
   httpd_uri_t cmd_uri = {
       .uri = "/control",
       .method = HTTP_GET,
@@ -1127,7 +1122,7 @@ void startCameraServer()
       .supported_subprotocol = NULL
 #endif
   };
-#endif // CAMERA
+#endif // CAMERA_SUPPORTED
 
   log_i("Starting web server on port: '%d'", config.server_port);
   if (httpd_start(&camera_httpd, &config) == ESP_OK)
@@ -1141,7 +1136,7 @@ void startCameraServer()
     httpd_register_uri_handler(camera_httpd, &favicon_uri);
     httpd_register_uri_handler(camera_httpd, &touchremote_uri);
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
     httpd_register_uri_handler(camera_httpd, &cmd_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);
     httpd_register_uri_handler(camera_httpd, &capture_uri);
@@ -1152,12 +1147,12 @@ void startCameraServer()
     httpd_register_uri_handler(camera_httpd, &greg_uri);
     httpd_register_uri_handler(camera_httpd, &pll_uri);
     httpd_register_uri_handler(camera_httpd, &win_uri);
-#endif // CAMERA
+#endif // CAMERA_SUPPORTED
 
     httpd_register_err_handler(camera_httpd, HTTPD_404_NOT_FOUND, &not_found_handler);
   }
 
-#ifdef CAMERA
+#ifdef CAMERA_SUPPORTED
   config.server_port += 1;
   config.ctrl_port += 1;
   log_i("Starting stream server on port: '%d'", config.server_port);
@@ -1165,5 +1160,5 @@ void startCameraServer()
   {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
   }
-#endif // CAMERA
+#endif // CAMERA_SUPPORTED
 }
