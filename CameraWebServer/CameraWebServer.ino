@@ -1,4 +1,6 @@
-// Set these to your desired credentials.
+// ===========================
+// Set WiFi softAP credentials
+// ===========================
 const char *ssid = "ESP32 AP";
 const char *password = "";
 
