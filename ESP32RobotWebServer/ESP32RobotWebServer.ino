@@ -2,14 +2,15 @@
 // Set WiFi softAP credentials
 // ===========================
 // const char *ssid = "Strider Walker V8";
-const char *ssid = "Strider Walker V9";
+const char *ssid = "JSZWY_CYIS";
 // const char *ssid = "Zigbot";
 const char *password = "";
 
 // Dev Device Pins: <https://github.com/moononournation/Dev_Device_Pins.git>
 // #include <PINS_ESP32-S3-CAM.h>
-#include <PINS_T-JOURNAL_ROBOT.h>
-// #include "PINS_XIAO_ESP32C6_ZIGBOT.h"
+#include <PINS_JSZWY_CYIS.h>
+// #include <PINS_T-JOURNAL_ROBOT.h>
+// #include <PINS_XIAO_ESP32C6_ZIGBOT.h>
 
 #include "app_httpd.h"
 
@@ -163,6 +164,8 @@ void setup()
   {
     s->set_framesize(s, FRAMESIZE_QVGA);
   }
+  s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
   Serial.println("Set CAMERA_MODEL_M5STACK_*");
@@ -184,26 +187,26 @@ void setup()
 #elif defined(MOTOR)
 #if (ESP_ARDUINO_VERSION_MAJOR < 3)
   ledcSetup(1 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
-  ledcAttachPin(MOTOR_L_A_PIN, 1 /* LEDChannel */);
+  ledcAttachPin(MOTOR_L_A, 1 /* LEDChannel */);
   ledcWrite(1 /* LEDChannel */, 0); /* 0-255 */
   ledcSetup(2 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
-  ledcAttachPin(MOTOR_L_B_PIN, 2 /* LEDChannel */);
+  ledcAttachPin(MOTOR_L_B, 2 /* LEDChannel */);
   ledcWrite(2 /* LEDChannel */, 0); /* 0-255 */
   ledcSetup(3 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
-  ledcAttachPin(MOTOR_R_A_PIN, 3 /* LEDChannel */);
+  ledcAttachPin(MOTOR_R_A, 3 /* LEDChannel */);
   ledcWrite(3 /* LEDChannel */, 0); /* 0-255 */
   ledcSetup(4 /* LEDChannel */, 5000 /* freq */, 8 /* resolution */);
-  ledcAttachPin(MOTOR_R_B_PIN, 4 /* LEDChannel */);
+  ledcAttachPin(MOTOR_R_B, 4 /* LEDChannel */);
   ledcWrite(4 /* LEDChannel */, 0); /* 0-255 */
 #else
-  ledcAttach(MOTOR_L_A_PIN, 5000, 8);
-  ledcWrite(MOTOR_L_A_PIN, 0); /* 0-255 */
-  ledcAttach(MOTOR_L_B_PIN, 5000, 8);
-  ledcWrite(MOTOR_L_B_PIN, 0); /* 0-255 */
-  ledcAttach(MOTOR_R_A_PIN, 5000, 8);
-  ledcWrite(MOTOR_R_A_PIN, 0); /* 0-255 */
-  ledcAttach(MOTOR_R_B_PIN, 5000, 8);
-  ledcWrite(MOTOR_R_B_PIN, 0); /* 0-255 */
+  ledcAttach(MOTOR_L_A, 5000, 8);
+  ledcWrite(MOTOR_L_A, 0); /* 0-255 */
+  ledcAttach(MOTOR_L_B, 5000, 8);
+  ledcWrite(MOTOR_L_B, 0); /* 0-255 */
+  ledcAttach(MOTOR_R_A, 5000, 8);
+  ledcWrite(MOTOR_R_A, 0); /* 0-255 */
+  ledcAttach(MOTOR_R_B, 5000, 8);
+  ledcWrite(MOTOR_R_B, 0); /* 0-255 */
 #endif
 #endif
 

@@ -78,8 +78,8 @@ static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
   int lAngle = map(lv, 0, 510, 0, 179);
   int rAngle = map(rv, 0, 510, 179, 0);
 #endif
-  servo1.attach(SERVO360_L_PIN, minUs, maxUs);
-  servo2.attach(SERVO360_R_PIN, minUs, maxUs);
+  servo1.attach(SERVO360_L, minUs, maxUs);
+  servo2.attach(SERVO360_R, minUs, maxUs);
   servo1.write(lAngle);
   servo2.write(rAngle);
   Serial.printf("la: %d, lb: %d, lAngle: %d, ra: %d, rb: %d, rAngle: %d\n", la, lb, lAngle, ra, rb, rAngle);
@@ -90,10 +90,10 @@ static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
   ledcWrite(3 /* LEDChannel */, ra); /* 0-255 */
   ledcWrite(4 /* LEDChannel */, rb); /* 0-255 */
 #else
-  ledcWrite(MOTOR_L_A_PIN, la); /* 0-255 */
-  ledcWrite(MOTOR_L_B_PIN, lb); /* 0-255 */
-  ledcWrite(MOTOR_R_A_PIN, ra); /* 0-255 */
-  ledcWrite(MOTOR_R_B_PIN, rb); /* 0-255 */
+  ledcWrite(MOTOR_L_A, la); /* 0-255 */
+  ledcWrite(MOTOR_L_B, lb); /* 0-255 */
+  ledcWrite(MOTOR_R_A, ra); /* 0-255 */
+  ledcWrite(MOTOR_R_B, rb); /* 0-255 */
 #endif
 #endif
 }
