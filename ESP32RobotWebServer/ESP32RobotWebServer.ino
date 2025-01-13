@@ -4,7 +4,6 @@
 // const char *ssid = "Strider Walker V8";
 const char *ssid = "JSZWY_CYIS";
 // const char *ssid = "Zigbot";
-const char *password = "";
 
 // Dev Device Pins: <https://github.com/moononournation/Dev_Device_Pins.git>
 // #include <PINS_ESP32-S3-CAM.h>
@@ -29,7 +28,6 @@ SSD1306Wire display(I2C_SSD1306_ADDRESS, I2C_SDA, I2C_SCL, GEOMETRY_128_32);
 #include <LittleFS.h>
 
 #include <WiFi.h>
-#include <WiFiAP.h>
 #include <DNSServer.h>
 
 DNSServer dnsServer;
@@ -211,7 +209,7 @@ void setup()
 #endif
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ssid);
 
   // by default DNSServer is started serving any "*" domain name. It will reply
   // AccessPoint's IP to all DNS request (this is required for Captive Portal detection)
