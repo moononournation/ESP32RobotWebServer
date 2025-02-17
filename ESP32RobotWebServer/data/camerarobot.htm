@@ -173,6 +173,7 @@
 
     input[type=range] {
       -webkit-appearance: none;
+      appearance: none;
       width: 100%;
       height: 22px;
       background: #363636;
@@ -756,7 +757,7 @@
       img.onload = function () {
         clearCanvas();
       }
-      img.src = `http://${hostName}/arrows.svg`;
+      img.src = `http://${hostName}/static/arrows.svg`;
 
       function clearCanvas() {
         ctx.fillStyle = '#fff';

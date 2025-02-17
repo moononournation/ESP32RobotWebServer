@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name='viewport' content='user-scalable=no,initial-scale=2.0' />
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      text-align: center;
+    }
+
+    div {
+      margin: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+      <h3>Pick An Emoji</h3>
+      <img id='emojis' onclick='clickEmoji(event);' src='/static/emojis.png'>
+  </div>
+  <div>
+      <p id='out'></p>
+      <canvas id='emoji' width='8' height='8'></canvas>
+  </div>
+  <script>
+    function nw() { return new WebSocket('ws://' + location.hostname + ':81/', ['arduino']); }
+    var ws = nw();
+
+    function cc(c) {
+      return String.fromCharCode(c / 64);
+    }
+
+    function clickEmoji(e) {
+      var xo = 3;
+      var yo = 3;
+      var xs = 13;
+      var ys = 12;
+      var x = e.offsetX;
+      var y = e.offsetY;
+      var c = Math.round((x - xo - 4) / xs);
+      var r = Math.round((y - yo - 4) / ys);
+
+      document.getElementById('out').innerText = 'Selected [' + c + ', ' + r + ']';
+
+      var img = document.getElementById('emojis');
+      var ce = document.getElementById('emoji');
+      var ctx = ce.getContext('2d');
+      // ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
+      ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
+
+      var d = ctx.getImageData(0, 0, 8, 8).data;
+      var t = '';
+      for (var i = 0; i < 64; i++) {
+        t += cc(d[(i * 4)]);
+        t += cc(d[(i * 4) + 1]);
+        t += cc(d[(i * 4) + 2]);
+      }
+      ws.send(t, { binary: true });
+    }
+  </script>
+</body>
+
+</html>
