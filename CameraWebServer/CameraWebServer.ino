@@ -1,12 +1,5 @@
-// ===========================
-// Set WiFi softAP credentials
-// ===========================
-const char *ssid = "ESP32 AP";
-const char *password = "";
-
 #include "esp_camera.h"
 #include <WiFi.h>
-#include <WiFiAP.h>
 
 //
 // WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
@@ -21,7 +14,7 @@ const char *password = "";
 // Select camera model
 // ===================
 //#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
-#define CAMERA_MODEL_ESP_EYE  // Has PSRAM
+//#define CAMERA_MODEL_ESP_EYE  // Has PSRAM
 //#define CAMERA_MODEL_ESP32S3_EYE // Has PSRAM
 //#define CAMERA_MODEL_M5STACK_PSRAM // Has PSRAM
 //#define CAMERA_MODEL_M5STACK_V2_PSRAM // M5Camera version B Has PSRAM
@@ -30,7 +23,7 @@ const char *password = "";
 //#define CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
 //#define CAMERA_MODEL_M5STACK_CAMS3_UNIT  // Has PSRAM
 //#define CAMERA_MODEL_AI_THINKER // Has PSRAM
-//#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
+#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
 //#define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
 // ** Espressif Internal Boards **
 //#define CAMERA_MODEL_ESP32_CAM_BOARD
@@ -39,6 +32,12 @@ const char *password = "";
 //#define CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 // Has PSRAM
 //#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
 #include "camera_pins.h"
+
+// ===========================
+// Enter your WiFi credentials
+// ===========================
+const char *ssid = "YourAP";
+const char *password = "PleaseInputYourPasswordHere";
 
 void startCameraServer();
 void setupLedFlash(int pin);
@@ -134,10 +133,16 @@ void setup() {
   setupLedFlash(LED_GPIO_NUM);
 #endif
 
-  if (!WiFi.softAP(ssid, password)) {
-    log_e("Soft AP creation failed.");
-    while (1);
+  WiFi.begin(ssid, password);
+  WiFi.setSleep(false);
+
+  Serial.print("WiFi connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
+  Serial.println("");
+  Serial.println("WiFi connected");
 
   startCameraServer();
 
