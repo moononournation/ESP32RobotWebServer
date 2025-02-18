@@ -45,7 +45,7 @@ void setup()
   WiFi.softAP(AP_SSID, AP_PASSWORD);
 #endif // !WIFI_STATION
 
-module_gpio_init();
+  module_gpio_init();
 
 #ifdef I2C_SUPPORTED
   module_i2c_init();
@@ -74,7 +74,11 @@ module_gpio_init();
     Serial.println("Err: Can't start DNS server!");
   }
 
-  startHttpServer();
+  start_http_server();
+
+#ifdef CAMERA_SUPPORTED
+  module_camera_start_stream_server();
+#endif // CAMERA_SUPPORTED
 
   Serial.println("HTTP server ready! Connect AP and use 'http://192.168.4.1' to connect");
 }

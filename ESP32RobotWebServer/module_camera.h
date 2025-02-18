@@ -14,7 +14,10 @@
 
 #include <esp_camera.h>
 
-typedef struct {
+httpd_handle_t stream_httpd = NULL;
+
+typedef struct
+{
   httpd_req_t *req;
   size_t len;
 } jpg_chunking_t;
@@ -340,31 +343,6 @@ static esp_err_t stream_handler(httpd_req_t *req)
   }
 
   return res;
-}
-
-static esp_err_t parse_get(httpd_req_t *req, char **obuf)
-{
-  char *buf = NULL;
-  size_t buf_len = 0;
-
-  buf_len = httpd_req_get_url_query_len(req) + 1;
-  if (buf_len > 1)
-  {
-    buf = (char *)malloc(buf_len);
-    if (!buf)
-    {
-      httpd_resp_send_500(req);
-      return ESP_FAIL;
-    }
-    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
-    {
-      *obuf = buf;
-      return ESP_OK;
-    }
-    free(buf);
-  }
-  httpd_resp_send_404(req);
-  return ESP_FAIL;
 }
 
 static esp_err_t cmd_handler(httpd_req_t *req)
@@ -766,134 +744,100 @@ static esp_err_t win_handler(httpd_req_t *req)
   return httpd_resp_send(req, NULL, 0);
 }
 
-httpd_uri_t cmd_uri = {
-  .uri = "/control",
-  .method = HTTP_GET,
-  .handler = cmd_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+void module_camera_httpd_reg()
+{
+  httpd_uri_t cmd_uri = {
+      .uri = "/control",
+      .method = HTTP_GET,
+      .handler = cmd_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t status_uri = {
-  .uri = "/status",
-  .method = HTTP_GET,
-  .handler = status_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t status_uri = {
+      .uri = "/status",
+      .method = HTTP_GET,
+      .handler = status_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t capture_uri = {
-  .uri = "/capture",
-  .method = HTTP_GET,
-  .handler = capture_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t capture_uri = {
+      .uri = "/capture",
+      .method = HTTP_GET,
+      .handler = capture_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t bmp_uri = {
-  .uri = "/bmp",
-  .method = HTTP_GET,
-  .handler = bmp_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t bmp_uri = {
+      .uri = "/bmp",
+      .method = HTTP_GET,
+      .handler = bmp_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t xclk_uri = {
-  .uri = "/xclk",
-  .method = HTTP_GET,
-  .handler = xclk_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t xclk_uri = {
+      .uri = "/xclk",
+      .method = HTTP_GET,
+      .handler = xclk_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t reg_uri = {
-  .uri = "/reg",
-  .method = HTTP_GET,
-  .handler = reg_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t reg_uri = {
+      .uri = "/reg",
+      .method = HTTP_GET,
+      .handler = reg_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t greg_uri = {
-  .uri = "/greg",
-  .method = HTTP_GET,
-  .handler = greg_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t greg_uri = {
+      .uri = "/greg",
+      .method = HTTP_GET,
+      .handler = greg_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t pll_uri = {
-  .uri = "/pll",
-  .method = HTTP_GET,
-  .handler = pll_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t pll_uri = {
+      .uri = "/pll",
+      .method = HTTP_GET,
+      .handler = pll_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t win_uri = {
-  .uri = "/resolution",
-  .method = HTTP_GET,
-  .handler = win_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_uri_t win_uri = {
+      .uri = "/resolution",
+      .method = HTTP_GET,
+      .handler = win_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
 
-httpd_uri_t stream_uri = {
-  .uri = "/stream",
-  .method = HTTP_GET,
-  .handler = stream_handler,
-  .user_ctx = NULL
-#ifdef CONFIG_HTTPD_WS_SUPPORT
-  ,
-  .is_websocket = true,
-  .handle_ws_control_frames = false,
-  .supported_subprotocol = NULL
-#endif
-};
+  httpd_register_uri_handler(app_httpd, &cmd_uri);
+  httpd_register_uri_handler(app_httpd, &status_uri);
+  httpd_register_uri_handler(app_httpd, &capture_uri);
+  httpd_register_uri_handler(app_httpd, &bmp_uri);
+
+  httpd_register_uri_handler(app_httpd, &xclk_uri);
+  httpd_register_uri_handler(app_httpd, &reg_uri);
+  httpd_register_uri_handler(app_httpd, &greg_uri);
+  httpd_register_uri_handler(app_httpd, &pll_uri);
+  httpd_register_uri_handler(app_httpd, &win_uri);
+}
+
+void module_camera_start_stream_server()
+{
+  httpd_uri_t stream_uri = {
+      .uri = "/stream",
+      .method = HTTP_GET,
+      .handler = stream_handler,
+      .user_ctx = NULL,
+      .is_websocket = false};
+
+  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  config.server_port += 1;
+  config.ctrl_port += 1;
+  log_i("Starting stream server on port: '%d'", config.server_port);
+  if (httpd_start(&stream_httpd, &config) == ESP_OK)
+  {
+    httpd_register_uri_handler(stream_httpd, &stream_uri);
+  }
+}
 
 #endif // CAMERA_SUPPORTED

@@ -23,26 +23,15 @@
 #include <FFat.h>
 #include <LittleFS.h>
 
-httpd_handle_t stream_httpd = NULL;
+httpd_handle_t app_httpd = NULL;
+static uint16_t hexValue(uint8_t h);
+static esp_err_t parse_get(httpd_req_t *req, char **obuf);
 
 #include "module_gpio.h"
-
-#ifdef CAMERA_SUPPORTED
-httpd_handle_t app_httpd = NULL;
 #include "module_camera.h"
-#endif
-
-#ifdef I2C_SUPPORTED
 #include "module_i2c.h"
-#endif
-
-#ifdef MOTOR_SUPPORTED
 #include "module_motor.h"
-#endif
-
-#ifdef NEOPIXEL
 #include "module_neopixel.h"
-#endif
 
 unsigned long last_http_activity_ms;
 
@@ -61,6 +50,31 @@ static uint16_t hexValue(uint8_t h)
     return 10 + h - 'a';
   }
   return 0;
+}
+
+static esp_err_t parse_get(httpd_req_t *req, char **obuf)
+{
+  char *buf = NULL;
+  size_t buf_len = 0;
+
+  buf_len = httpd_req_get_url_query_len(req) + 1;
+  if (buf_len > 1)
+  {
+    buf = (char *)malloc(buf_len);
+    if (!buf)
+    {
+      httpd_resp_send_500(req);
+      return ESP_FAIL;
+    }
+    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
+    {
+      *obuf = buf;
+      return ESP_OK;
+    }
+    free(buf);
+  }
+  httpd_resp_send_404(req);
+  return ESP_FAIL;
 }
 
 static char buf[1024];
@@ -171,7 +185,7 @@ static esp_err_t index_handler(httpd_req_t *req)
   last_http_activity_ms = millis();
 
   httpd_resp_set_type(req, "text/html");
-#ifdef CAMERA_SUPPORTED
+#if defined(CAMERA_SUPPORTED)
   sensor_t *s = esp_camera_sensor_get();
   if (s != NULL)
   {
@@ -193,8 +207,12 @@ static esp_err_t index_handler(httpd_req_t *req)
     log_e("Camera sensor not found");
     return httpd_resp_send_500(req);
   }
+#elif defined(MOTOR_SUPPORTED)
+  return httpd_resp_send_file(req, "/static/emojisign.htm");
+#elif defined(NEOPIXEL)
+  return httpd_resp_send_file(req, "/static/emojisign.htm");
 #else
-  return httpd_resp_send_file(req, "/static/touchremote.htm");
+  return httpd_resp_send_file(req, "/static/index.htm");
 #endif
 }
 
@@ -244,7 +262,7 @@ static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
   return httpd_resp_send(req, "Redirect HTML", 13);
 }
 
-void startHttpServer()
+void start_http_server()
 {
   // if (!FFat.begin(false, "/static"))
   if (!LittleFS.begin(false, "/static"))
@@ -290,16 +308,7 @@ void startHttpServer()
   if (httpd_start(&app_httpd, &config) == ESP_OK)
   {
 #ifdef CAMERA_SUPPORTED
-    httpd_register_uri_handler(app_httpd, &cmd_uri);
-    httpd_register_uri_handler(app_httpd, &status_uri);
-    httpd_register_uri_handler(app_httpd, &capture_uri);
-    httpd_register_uri_handler(app_httpd, &bmp_uri);
-
-    httpd_register_uri_handler(app_httpd, &xclk_uri);
-    httpd_register_uri_handler(app_httpd, &reg_uri);
-    httpd_register_uri_handler(app_httpd, &greg_uri);
-    httpd_register_uri_handler(app_httpd, &pll_uri);
-    httpd_register_uri_handler(app_httpd, &win_uri);
+    module_camera_httpd_reg();
 #endif // CAMERA_SUPPORTED
 
     httpd_register_uri_handler(app_httpd, &ws_uri);
@@ -310,16 +319,6 @@ void startHttpServer()
 
     httpd_register_err_handler(app_httpd, HTTPD_404_NOT_FOUND, &not_found_handler);
   }
-
-#ifdef CAMERA_SUPPORTED
-  config.server_port += 1;
-  config.ctrl_port += 1;
-  log_i("Starting stream server on port: '%d'", config.server_port);
-  if (httpd_start(&stream_httpd, &config) == ESP_OK)
-  {
-    httpd_register_uri_handler(stream_httpd, &stream_uri);
-  }
-#endif // CAMERA_SUPPORTED
 
   last_http_activity_ms = millis();
 }
