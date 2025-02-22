@@ -27,8 +27,8 @@ httpd_handle_t app_httpd = NULL;
 static uint16_t hexValue(uint8_t h);
 static esp_err_t parse_get(httpd_req_t *req, char **obuf);
 
-#include "module_gpio.h"
 #include "module_camera.h"
+#include "module_gpio.h"
 #include "module_i2c.h"
 #include "module_motor.h"
 #include "module_neopixel.h"
@@ -148,32 +148,15 @@ static esp_err_t ws_handler(httpd_req_t *req)
     ESP_LOGE(TAG, "httpd_ws_send_frame failed with %d", ret);
   }
 
+  if (strncmp((const char *)buf, GPIO_CMD, sizeof(GPIO_CMD) - 1) == 0)
+  {
+    set_gpio((char *)(buf + (sizeof(GPIO_CMD) - 1)));
+  }
 #ifdef MOTOR_SUPPORTED
-  uint8_t *p = buf + sizeof(MOTOR_CMD) - 1;
-  uint8_t la = hexValue(*(p++));
-  if (*p != ':')
+  else if (strncmp((const char *)buf, MOTOR_CMD, sizeof(MOTOR_CMD) - 1) == 0)
   {
-    la = (la * 16) + hexValue(*(p++));
+    set_motor((char *)(buf + (sizeof(MOTOR_CMD) - 1)));
   }
-  p++; // skip seperator
-  uint8_t lb = hexValue(*(p++));
-  if (*p != ':')
-  {
-    lb = (lb * 16) + hexValue(*(p++));
-  }
-  p++; // skip seperator
-  uint8_t ra = hexValue(*(p++));
-  if (*p != ':')
-  {
-    ra = (ra * 16) + hexValue(*(p++));
-  }
-  p++; // skip seperator
-  uint8_t rb = hexValue(*(p++));
-  if (*p != ':')
-  {
-    rb = (rb * 16) + hexValue(*(p++));
-  }
-  setMotor(la, lb, ra, rb);
 #endif
 
   free(buf);
@@ -310,6 +293,8 @@ void start_http_server()
 #ifdef CAMERA_SUPPORTED
     module_camera_httpd_reg();
 #endif // CAMERA_SUPPORTED
+
+    module_gpio_httpd_reg();
 
     httpd_register_uri_handler(app_httpd, &ws_uri);
 

@@ -624,11 +624,7 @@
 
       function updateLed(el) {
         let value = el.checked ? 1 : 0;
-        const query = `http://${hostName}/gpio?pin=led&val=${value}`;
-        fetch(query)
-          .then(response => {
-            console.log(`request to ${query} finished, status: ${response.status}`);
-          });
+        sendMessage('GPIO:LED:' + value);
       }
 
       function updateConfig(el) {

@@ -561,6 +561,7 @@ static esp_err_t status_handler(httpd_req_t *req)
   *p++ = '}';
   *p++ = 0;
   httpd_resp_set_type(req, "application/json");
+
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, json_response, strlen(json_response));
 }
@@ -661,6 +662,7 @@ static esp_err_t greg_handler(httpd_req_t *req)
 
   char buffer[20];
   const char *val = itoa(res, buffer, 10);
+
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, val, strlen(val));
 }

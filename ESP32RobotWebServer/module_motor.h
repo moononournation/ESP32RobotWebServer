@@ -49,11 +49,35 @@ void module_motor_init()
 #endif // !SERVO360MOTOR
 }
 
-static void setMotor(uint8_t la, uint8_t lb, uint8_t ra, uint8_t rb)
+static void set_motor(char *cmd)
 {
+  uint8_t la = hexValue(*(cmd++));
+  if (*cmd != ':')
+  {
+    la = (la * 16) + hexValue(*(cmd++));
+  }
+  cmd++; // skip seperator
+  uint8_t lb = hexValue(*(cmd++));
+  if (*cmd != ':')
+  {
+    lb = (lb * 16) + hexValue(*(cmd++));
+  }
+  cmd++; // skip seperator
+  uint8_t ra = hexValue(*(cmd++));
+  if (*cmd != ':')
+  {
+    ra = (ra * 16) + hexValue(*(cmd++));
+  }
+  cmd++; // skip seperator
+  uint8_t rb = hexValue(*(cmd++));
+  if (*cmd != ':')
+  {
+    rb = (rb * 16) + hexValue(*(cmd++));
+  }
+
+#ifdef SERVO360MOTOR
   int lv = la + 255 - lb;
   int rv = ra + 255 - rb;
-#ifdef SERVO360MOTOR
 #ifdef SERVO360_REVERSE
   int lAngle = map(lv, 0, 510, 179, 0);
   int rAngle = map(rv, 0, 510, 0, 179);
