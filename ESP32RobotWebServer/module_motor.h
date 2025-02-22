@@ -49,7 +49,7 @@ void module_motor_init()
 #endif // !SERVO360MOTOR
 }
 
-static void set_motor(char *cmd)
+static void module_motor_cmd(char *cmd)
 {
   uint8_t la = hexValue(*(cmd++));
   if (*cmd != ':')

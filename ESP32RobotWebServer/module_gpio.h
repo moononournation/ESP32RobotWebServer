@@ -8,7 +8,7 @@ void module_gpio_init()
 #endif
 }
 
-static void set_gpio(char *cmd)
+static void module_gpio_cmd(char *cmd)
 {
   uint8_t gpio, val;
 #ifdef LED_A
@@ -48,7 +48,7 @@ static esp_err_t gpio_handler(httpd_req_t *req)
   }
   free(buf);
 
-  set_gpio(cmd);
+  module_gpio_cmd(cmd);
 
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, NULL, 0);

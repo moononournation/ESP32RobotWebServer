@@ -150,12 +150,12 @@ static esp_err_t ws_handler(httpd_req_t *req)
 
   if (strncmp((const char *)buf, GPIO_CMD, sizeof(GPIO_CMD) - 1) == 0)
   {
-    set_gpio((char *)(buf + (sizeof(GPIO_CMD) - 1)));
+    module_gpio_cmd((char *)(buf + (sizeof(GPIO_CMD) - 1)));
   }
 #ifdef MOTOR_SUPPORTED
   else if (strncmp((const char *)buf, MOTOR_CMD, sizeof(MOTOR_CMD) - 1) == 0)
   {
-    set_motor((char *)(buf + (sizeof(MOTOR_CMD) - 1)));
+    module_motor_cmd((char *)(buf + (sizeof(MOTOR_CMD) - 1)));
   }
 #endif
 
