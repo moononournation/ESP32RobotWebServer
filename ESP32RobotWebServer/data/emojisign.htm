@@ -18,48 +18,83 @@
 
 <body>
   <div>
-      <h3>Pick An Emoji</h3>
-      <img id='emojis' onclick='clickEmoji(event);' src='/static/emojis.png'>
+    <h3>Pick An Emoji</h3>
+    <img id='emojis' src='/static/emojis.png'>
   </div>
   <div>
-      <p id='out'></p>
-      <canvas id='emoji' width='8' height='8'></canvas>
+    <p id='out'></p>
+    <canvas id='emoji' width='8' height='8'></canvas>
+  </div>
+  <div>
+    <p>Output: <span id="output"></span></p>
   </div>
   <script>
-    function nw() { return new WebSocket('ws://' + location.hostname + ':81/', ['arduino']); }
-    var ws = nw();
+    document.addEventListener('DOMContentLoaded', function (event) {
+      var hostName = window.location.hostname;
+      var emojis = document.getElementById('emojis');
+      var ws = undefined;
+      var isSending = false;
+      var hasPendingMsg = false;
 
-    function cc(c) {
-      return String.fromCharCode(c / 64);
-    }
-
-    function clickEmoji(e) {
-      var xo = 3;
-      var yo = 3;
-      var xs = 13;
-      var ys = 12;
-      var x = e.offsetX;
-      var y = e.offsetY;
-      var c = Math.round((x - xo - 4) / xs);
-      var r = Math.round((y - yo - 4) / ys);
-
-      document.getElementById('out').innerText = 'Selected [' + c + ', ' + r + ']';
-
-      var img = document.getElementById('emojis');
-      var ce = document.getElementById('emoji');
-      var ctx = ce.getContext('2d');
-      // ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
-      ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
-
-      var d = ctx.getImageData(0, 0, 8, 8).data;
-      var t = '';
-      for (var i = 0; i < 64; i++) {
-        t += cc(d[(i * 4)]);
-        t += cc(d[(i * 4) + 1]);
-        t += cc(d[(i * 4) + 2]);
+      function nws() {
+        let ws = new WebSocket(`ws://${hostName}/ws`, ['arduino']);
+        ws.onmessage = function (e) {
+          isSending = false;
+          if (hasPendingMsg) {
+            hasPendingMsg = false;
+            sendMotor();
+          }
+        };
+        return ws;
       }
-      ws.send(t, { binary: true });
-    }
+
+      function sendMessage(outgoingMessage) {
+        if ((!ws) || (ws.readyState === ws.CLOSED)) { ws = nws(); }
+        if (!isSending) {
+          output.innerHTML = outgoingMessage;
+          isSending = true;
+          ws.send(outgoingMessage);
+        } else {
+          hasPendingMsg = true;
+          output.innerHTML = "pending";
+        }
+      }
+
+      function cc(c) {
+        return String.fromCharCode(c / 64);
+      }
+
+      function clickEmoji(e) {
+        var xo = 3;
+        var yo = 3;
+        var xs = 13;
+        var ys = 12;
+        var x = e.offsetX;
+        var y = e.offsetY;
+        var c = Math.round((x - xo - 4) / xs);
+        var r = Math.round((y - yo - 4) / ys);
+
+        document.getElementById('out').innerText = 'Selected [' + c + ', ' + r + ']';
+
+        var img = document.getElementById('emojis');
+        var ce = document.getElementById('emoji');
+        var ctx = ce.getContext('2d');
+        // ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
+        ctx.drawImage(img, -(xo + (xs * c)), -(yo + (ys * r)), 131, 122);
+
+        var d = ctx.getImageData(0, 0, 8, 8).data;
+        var t = 'NEOPIXEL:';
+        for (var i = 0; i < 64; i++) {
+          t += d[(i * 4)].toString(16).padStart(2, '0');
+          t += d[(i * 4) + 1].toString(16).padStart(2, '0');
+          t += d[(i * 4) + 2].toString(16).padStart(2, '0');
+        }
+        sendMessage(t);
+      }
+
+      ws = nws();
+      emojis.onclick=clickEmoji;
+    });
   </script>
 </body>
 

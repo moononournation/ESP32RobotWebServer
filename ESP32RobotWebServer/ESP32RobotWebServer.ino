@@ -1,13 +1,13 @@
 // ===========================
 // Set WiFi softAP credentials
 // ===========================
-// #define WIFI_STATION
+#define WIFI_STATION
 #ifdef WIFI_STATION
 const char *STA_SSID = "YourAP";
 const char *STA_PASSWORD = "PleaseInputYourPasswordHere";
 #else  // !WIFI_STATION
-// const char *AP_SSID = "Emoji Sign";
-const char *AP_SSID = "JSZWY_CYIS";
+const char *AP_SSID = "Emoji Sign";
+// const char *AP_SSID = "JSZWY_CYIS";
 // const char *AP_SSID = "Strider Walker V8";
 // const char *AP_SSID = "Zigbot";
 const char *AP_PASSWORD = "";
@@ -15,8 +15,8 @@ const char *AP_PASSWORD = "";
 
 // Dev Device Pins: <https://github.com/moononournation/Dev_Device_Pins.git>
 // #include <PINS_ESP32-S3-CAM.h>
-// #include <PINS_ESP32-S3-MATRIX.h>
-#include <PINS_JSZWY_CYIS.h>
+#include <PINS_ESP32-S3-MATRIX.h>
+// #include <PINS_JSZWY_CYIS.h>
 // #include <PINS_JSZWY_CYIS_V2.h>
 // #include <PINS_T-JOURNAL_ROBOT.h>
 // #include <PINS_XIAO_ESP32C6_ZIGBOT.h>
@@ -62,7 +62,7 @@ void setup()
   module_motor_init();
 #endif
 
-#ifdef NEOPIXEL
+#ifdef NEOPIXEL_SUPPORTED
   module_neopixel_init();
 #endif
 
@@ -85,7 +85,13 @@ void setup()
   module_camera_start_stream_server();
 #endif // CAMERA_SUPPORTED
 
+#ifdef WIFI_STATION
+  Serial.print("HTTP server ready! Connect AP and use 'http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("' to connect");
+#else
   Serial.println("HTTP server ready! Connect AP and use 'http://192.168.4.1' to connect");
+#endif
 }
 
 void loop()

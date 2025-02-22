@@ -4,6 +4,8 @@
 
 #ifdef NEOPIXEL_SUPPORTED
 
+#define NEOPIXEL_CMD "NEOPIXEL:"
+
 #define NEOPIXEL_NUMS (NEOPIXEL_WIDTH * NEOPIXEL_HEIGHT)
 #include <FastLED.h>
 CRGB neopixels[NEOPIXEL_NUMS];
@@ -21,8 +23,11 @@ static void module_neopixel_cmd(char *cmd)
   int i = NEOPIXEL_NUMS;
   while (i--)
   {
-    gpio = hexValue(*(cmd++));
+    neopixels[i].g = hexValue(*(cmd++)) * 16 + hexValue(*(cmd++));
+    neopixels[i].r = hexValue(*(cmd++)) * 16 + hexValue(*(cmd++));
+    neopixels[i].b = hexValue(*(cmd++)) * 16 + hexValue(*(cmd++));
   }
+  FastLED.show();
 }
 
 #endif // NEOPIXEL_SUPPORTED

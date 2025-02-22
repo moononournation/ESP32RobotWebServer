@@ -158,6 +158,13 @@ static esp_err_t ws_handler(httpd_req_t *req)
     module_motor_cmd((char *)(buf + (sizeof(MOTOR_CMD) - 1)));
   }
 #endif
+#ifdef NEOPIXEL_SUPPORTED
+  else if (strncmp((const char *)buf, NEOPIXEL_CMD, sizeof(NEOPIXEL_CMD) - 1) == 0)
+  {
+    Serial.println((char *)(buf + (sizeof(NEOPIXEL_CMD) - 1)));
+    module_neopixel_cmd((char *)(buf + (sizeof(NEOPIXEL_CMD) - 1)));
+  }
+#endif
 
   free(buf);
   return ret;
@@ -191,8 +198,8 @@ static esp_err_t index_handler(httpd_req_t *req)
     return httpd_resp_send_500(req);
   }
 #elif defined(MOTOR_SUPPORTED)
-  return httpd_resp_send_file(req, "/static/emojisign.htm");
-#elif defined(NEOPIXEL)
+  return httpd_resp_send_file(req, "/static/touchremote.htm");
+#elif defined(NEOPIXEL_SUPPORTED)
   return httpd_resp_send_file(req, "/static/emojisign.htm");
 #else
   return httpd_resp_send_file(req, "/static/index.htm");
@@ -235,10 +242,14 @@ static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
 {
   last_http_activity_ms = millis();
 
-#ifdef CAMERA_SUPPORTED
+#ifdef defined(CAMERA_SUPPORTED)
   httpd_resp_set_hdr(req, "Location", "/static/camerarobot.htm");
-#else
+#elif defined(MOTOR_SUPPORTED)
   httpd_resp_set_hdr(req, "Location", "/static/touchremote.htm");
+#elif defined(NEOPIXEL_SUPPORTED)
+  httpd_resp_set_hdr(req, "Location", "/static/emojisign.htm");
+#else
+  httpd_resp_set_hdr(req, "Location", "/static/index.htm");
 #endif
   httpd_resp_set_status(req, "302");
   httpd_resp_set_type(req, "text/plain");
