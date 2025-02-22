@@ -787,7 +787,7 @@
         }
       }
       function sendMotor() {
-        sendMessage('MOTOR:' + la.substr(-2) + ':' + lb.substr(-2) + ':' + ra.substr(-2) + ':' + rb.substr(-2));
+        sendMessage('MOTOR:' + la + ':' + lb + ':' + ra + ':' + rb);
       }
 
       function updateMotor(x, y) {
@@ -823,10 +823,10 @@
             la = rb;
           }
         }
-        la = '0' + la.toString(16);
-        lb = '0' + lb.toString(16);
-        ra = '0' + ra.toString(16);
-        rb = '0' + rb.toString(16);
+        la = la.toString(16).padStart(2, '0');
+        lb = lb.toString(16).padStart(2, '0');
+        ra = ra.toString(16).padStart(2, '0');
+        rb = rb.toString(16).padStart(2, '0');
         sendMotor();
 
         ctx.beginPath();
