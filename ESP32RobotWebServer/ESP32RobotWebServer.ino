@@ -1,7 +1,7 @@
 // ===========================
 // Set WiFi softAP credentials
 // ===========================
-#define WIFI_STATION
+// #define WIFI_STATION
 #ifdef WIFI_STATION
 const char *STA_SSID = "YourAP";
 const char *STA_PASSWORD = "PleaseInputYourPasswordHere";
