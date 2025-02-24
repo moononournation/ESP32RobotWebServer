@@ -26,6 +26,12 @@
 httpd_handle_t app_httpd = NULL;
 static uint16_t hexValue(uint8_t h);
 static esp_err_t parse_get(httpd_req_t *req, char **obuf);
+httpd_ws_frame_t ok_reply = {
+    .final = false,
+    .fragmented = false,
+    .type = HTTPD_WS_TYPE_TEXT,
+    .payload = (uint8_t *)"OK",
+    .len = 3};
 
 #include "module_camera.h"
 #include "module_gpio.h"
@@ -142,29 +148,33 @@ static esp_err_t ws_handler(httpd_req_t *req)
   }
   ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
 
-  ret = httpd_ws_send_frame(req, &ws_pkt);
-  if (ret != ESP_OK)
-  {
-    ESP_LOGE(TAG, "httpd_ws_send_frame failed with %d", ret);
-  }
-
   if (strncmp((const char *)buf, GPIO_CMD, sizeof(GPIO_CMD) - 1) == 0)
   {
     module_gpio_cmd((char *)(buf + (sizeof(GPIO_CMD) - 1)));
+    httpd_ws_send_frame(req, &ok_reply);
   }
 #ifdef MOTOR_SUPPORTED
   else if (strncmp((const char *)buf, MOTOR_CMD, sizeof(MOTOR_CMD) - 1) == 0)
   {
     module_motor_cmd((char *)(buf + (sizeof(MOTOR_CMD) - 1)));
+    httpd_ws_send_frame(req, &ok_reply);
   }
 #endif
 #ifdef NEOPIXEL_SUPPORTED
   else if (strncmp((const char *)buf, NEOPIXEL_CMD, sizeof(NEOPIXEL_CMD) - 1) == 0)
   {
-    Serial.println((char *)(buf + (sizeof(NEOPIXEL_CMD) - 1)));
     module_neopixel_cmd((char *)(buf + (sizeof(NEOPIXEL_CMD) - 1)));
+    httpd_ws_send_frame(req, &ok_reply);
   }
 #endif
+  else
+  {
+    ret = httpd_ws_send_frame(req, &ws_pkt);
+    if (ret != ESP_OK)
+    {
+      ESP_LOGE(TAG, "httpd_ws_send_frame failed with %d", ret);
+    }
+  }
 
   free(buf);
   return ret;
@@ -242,7 +252,7 @@ static esp_err_t not_found_handler(httpd_req_t *req, httpd_err_code_t)
 {
   last_http_activity_ms = millis();
 
-#ifdef defined(CAMERA_SUPPORTED)
+#if defined(CAMERA_SUPPORTED)
   httpd_resp_set_hdr(req, "Location", "/static/camerarobot.htm");
 #elif defined(MOTOR_SUPPORTED)
   httpd_resp_set_hdr(req, "Location", "/static/touchremote.htm");
